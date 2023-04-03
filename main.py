@@ -1,27 +1,52 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import FastAPI,HTTPException
+from starlette.middleware.cors import CORSMiddleware
+
+from src.dataSchema import Application
+from src.main import ModelMain
+
+from src.databaseCont import (
+    createApplication,
+    getAllApplications,
+    getJobs
+
+)
 
 app = FastAPI()
 
-class Msg(BaseModel):
-    msg: str
+origins = ['http://127.0.0.1:5173','http://127.0.0.1:5174']
 
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World. Welcome to FastAPI!"}
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+# post controller
 
 
-@app.get("/path")
-async def demo_get():
-    return {"message": "This is /path endpoint, use a post request to transform the text to uppercase"}
+
+@app.post("/api/application")
+async def post_application(application: Application):
+    Model = ModelMain()
+    print(application)
+    application.prediction = Model.runnerClass(application.answers[0])
+    response = await createApplication(application.dict())
+    if response:
+        return application.prediction
+
+    else:
+        raise HTTPException(404, "Something went wrong when adding")
+
+@app.get("/api/admin")
+async def get_applications():
+    response = await getAllApplications()
+    return response
 
 
-@app.post("/path")
-async def demo_post(inp: Msg):
-    return {"message": inp.msg.upper()}
-
-
-@app.get("/path/{path_id}")
-async def demo_get_path_id(path_id: int):
-    return {"message": f"This is /path/{path_id} endpoint, use post request to retrieve result"}
+@app.get("/api/jobs")
+async def get_jobs():
+    respone = await getJobs()
+    return respone
